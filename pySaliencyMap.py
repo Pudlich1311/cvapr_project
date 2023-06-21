@@ -13,7 +13,7 @@ class pySaliencyMap:
 
 
     # extracting color channels
-    def SMExtractRGBI(self, inputImage):
+    def Extracr_RGB(self, inputImage):
         # convert scale of array elements
         src = np.float32(inputImage) * 1./255
         # split
@@ -25,15 +25,16 @@ class pySaliencyMap:
 
     # feature maps
     ## constructing a Gaussian pyramid
-    def FMCreateGaussianPyr(self, src):
+    def Create_Gauss_Pyr(self, src):
         dst = list()
         dst.append(src)
         for i in range(1,9):
             nowdst = cv2.pyrDown(dst[i-1])
             dst.append(nowdst)
         return dst
+    
     ## taking center-surround differences
-    def FMCenterSurroundDiff(self, GaussianMaps):
+    def Center_Surround_Diff(self, GaussianMaps):
         dst = list()
         for s in range(2,5):
             now_size = GaussianMaps[s].shape
@@ -45,16 +46,19 @@ class pySaliencyMap:
             nowdst = cv2.absdiff(GaussianMaps[s], tmp)
             dst.append(nowdst)
         return dst
+    
     ## constructing a Gaussian pyramid + taking center-surround differences
-    def FMGaussianPyrCSD(self, src):
-        GaussianMaps = self.FMCreateGaussianPyr(src)
-        dst = self.FMCenterSurroundDiff(GaussianMaps)
+    def Gauss_Pyr_CSD(self, src):
+        GaussianMaps = self.Create_Gauss_Pyr(src)
+        dst = self.Center_Surround_Diff(GaussianMaps)
         return dst
+    
     ## intensity feature maps
-    def IFMGetFM(self, I):
-        return self.FMGaussianPyrCSD(I)
+    def Intensity_FM(self, I):
+        return self.Gauss_Pyr_CSD(I)
+    
     ## color feature maps
-    def CFMGetFM(self, R, G, B):
+    def Get_Color_FM(self, R, G, B):
         # max(R,G,B)
         tmp1 = cv2.max(R, G)
         RGBMax = cv2.max(B, tmp1)
@@ -69,14 +73,13 @@ class pySaliencyMap:
         RG[RG < 0] = 0
         BY[BY < 0] = 0
         # obtain feature maps in the same way as intensity
-        RGFM = self.FMGaussianPyrCSD(RG)
-        BYFM = self.FMGaussianPyrCSD(BY)
+        RGFM = self.Gauss_Pyr_CSD(RG)
+        BYFM = self.Gauss_Pyr_CSD(BY)
         # return
         return RGFM, BYFM
-    ## orientation feature maps
     
     ## motion feature maps
-    def MFMGetFM(self, src):
+    def Get_FM(self, src):
         # convert scale
         I8U = np.uint8(255 * src)
         cv2.waitKey(10)
@@ -107,8 +110,8 @@ class pySaliencyMap:
             flowx = np.zeros(I8U.shape)
             flowy = np.zeros(I8U.shape)
         # create Gaussian pyramids
-        dst_x = self.FMGaussianPyrCSD(flowx)
-        dst_y = self.FMGaussianPyrCSD(flowy)
+        dst_x = self.Gauss_Pyr_CSD(flowx)
+        dst_y = self.Gauss_Pyr_CSD(flowy)
         # update the current frame
         self.prev_frame = np.uint8(I8U)
         # return
@@ -116,15 +119,16 @@ class pySaliencyMap:
 
     # conspicuity maps
     ## standard range normalization
-    def SMRangeNormalize(self, src):
+    def Range_Normalization(self, src):
         minn, maxx, dummy1, dummy2 = cv2.minMaxLoc(src)
         if maxx!=minn:
             dst = src/(maxx-minn) + minn/(minn-maxx)
         else:
             dst = src - minn
         return dst
+    
     ## computing an average of local maxima
-    def SMAvgLocalMax(self, src):
+    def Local_Max(self, src):
         # size
         stepsize = pySaliencyMapDefs.default_step_local
         width = src.shape[1]
@@ -140,82 +144,85 @@ class pySaliencyMap:
                 numlocal += 1
         # averaging over all the local regions
         return lmaxmean / numlocal
+    
     ## normalization specific for the saliency map model
-    def SMNormalization(self, src):
-        dst = self.SMRangeNormalize(src)
-        lmaxmean = self.SMAvgLocalMax(dst)
+    def Saliency_Model_Normalization(self, src):
+        dst = self.Range_Normalization(src)
+        lmaxmean = self.Local_Max(dst)
         normcoeff = (1-lmaxmean)*(1-lmaxmean)
         return dst * normcoeff
+    
     ## normalizing feature maps
-    def normalizeFeatureMaps(self, FM):
+    def Normalize_Feature_Maps(self, FM):
         NFM = list()
         for i in range(0,6):
-            normalizedImage = self.SMNormalization(FM[i])
+            normalizedImage = self.Saliency_Model_Normalization(FM[i])
             nownfm = cv2.resize(normalizedImage, (self.width, self.height), interpolation=cv2.INTER_LINEAR)
             NFM.append(nownfm)
         return NFM
+    
     ## intensity conspicuity map
-    def ICMGetCM(self, IFM):
-        NIFM = self.normalizeFeatureMaps(IFM)
+    def Get_Intensity(self, IFM):
+        NIFM = self.Normalize_Feature_Maps(IFM)
         ICM = sum(NIFM)
         return ICM
+    
     ## color conspicuity map
-    def CCMGetCM(self, CFM_RG, CFM_BY):
+    def Get_Color(self, CFM_RG, CFM_BY):
         # extracting a conspicuity map for every color opponent pair
-        CCM_RG = self.ICMGetCM(CFM_RG)
-        CCM_BY = self.ICMGetCM(CFM_BY)
+        CCM_RG = self.Get_Intensity(CFM_RG)
+        CCM_BY = self.Get_Intensity(CFM_BY)
         # merge
         CCM = CCM_RG + CCM_BY
         # return
         return CCM
 
     ## motion conspicuity map
-    def MCMGetCM(self, MFM_X, MFM_Y):
-        return self.CCMGetCM(MFM_X, MFM_Y)
+    def Get_Motion(self, MFM_X, MFM_Y):
+        return self.Get_Color(MFM_X, MFM_Y)
 
-    # core
-    def SMGetSM(self, src):
+
+    def Get_Saliency_Map(self, src):
         # definitions
         size = src.shape
         width  = size[1]
         height = size[0]
         # extracting individual color channels
-        R, G, B, I = self.SMExtractRGBI(src)
+        R, G, B, I = self.Extracr_RGB(src)
         # extracting feature maps
-        IFM = self.IFMGetFM(I)
-        CFM_RG, CFM_BY = self.CFMGetFM(R, G, B)
-        MFM_X, MFM_Y = self.MFMGetFM(I)
+        IFM = self.Intensity_FM(I)
+        CFM_RG, CFM_BY = self.Get_Color_FM(R, G, B)
+        MFM_X, MFM_Y = self.Get_FM(I)
         # extracting conspicuity maps
-        ICM = self.ICMGetCM(IFM)
-        CCM = self.CCMGetCM(CFM_RG, CFM_BY)
-        MCM = self.MCMGetCM(MFM_X, MFM_Y)
+        ICM = self.Get_Intensity(IFM)
+        CCM = self.Get_Color(CFM_RG, CFM_BY)
+        MCM = self.Get_Motion(MFM_X, MFM_Y)
         # adding all the conspicuity maps to form a saliency map
         wi = pySaliencyMapDefs.weight_intensity
         wc = pySaliencyMapDefs.weight_color
-        wo = pySaliencyMapDefs.weight_orientation
         wm = pySaliencyMapDefs.weight_motion
         SMMat = wi*ICM + wc*CCM + wm*MCM
         # normalize
-        normalizedSM = self.SMRangeNormalize(SMMat)
+        normalizedSM = self.Range_Normalization(SMMat)
         normalizedSM2 = normalizedSM.astype(np.float32)
         smoothedSM = cv2.bilateralFilter(normalizedSM2, 7, 3, 1.55)
         self.SM = cv2.resize(smoothedSM, (width,height), interpolation=cv2.INTER_NEAREST)
         # return
         return self.SM
 
-    def SMGetBinarizedSM(self, src):
+    def Get_Binarized_Map(self, src):
         # get a saliency map
         if self.SM is None:
-            self.SM = self.SMGetSM(src)
+            self.SM = self.Get_Saliency_Map(src)
         # convert scale
         SM_I8U = np.uint8(255 * self.SM)
         # binarize
         thresh, binarized_SM = cv2.threshold(SM_I8U, thresh=0, maxval=255, type=cv2.THRESH_BINARY+cv2.THRESH_OTSU)
         return binarized_SM
 
-    def SMGetSalientRegion(self, src):
+    def Get_Salient_Region(self, src):
         # get a binarized saliency map
-        binarized_SM = self.SMGetBinarizedSM(src)
+        binarized_SM = self.Get_Binarized_Map(src)
         # GrabCut
         img = src.copy()
         mask =  np.where((binarized_SM!=0), cv2.GC_PR_FGD, cv2.GC_PR_BGD).astype('uint8')

@@ -14,5 +14,4 @@ default_step_local = 16
 # feature weights
 weight_intensity   = 0.30
 weight_color       = 0.30
-weight_orientation = 0.20
 weight_motion      = 0.20

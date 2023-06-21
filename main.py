@@ -1,13 +1,19 @@
-
 import cv2
 import matplotlib.pyplot as plt
 import pySaliencyMap
+import argparse 
 
 # main
 if __name__ == '__main__':
 
-    # read
-    img = cv2.imread('dog.jpg')
+
+    parser = argparse.ArgumentParser(
+                    prog='CVAPR Project',
+                    description='Saliency detection with the usage of Gaussian Pyramids')
+    
+    parser.add_argument('-i', '--image',required=True,help='Input image')
+    args = parser.parse_args()
+    img = cv2.imread(args.image)
 
     # initialize
     imgsize = img.shape
@@ -16,9 +22,9 @@ if __name__ == '__main__':
     sm = pySaliencyMap.pySaliencyMap(img_width, img_height)
 
     # computation
-    saliency_map = sm.SMGetSM(img)
-    binarized_map = sm.SMGetBinarizedSM(img)
-    salient_region = sm.SMGetSalientRegion(img)
+    saliency_map = sm.Get_Saliency_Map(img)
+    binarized_map = sm.Get_Binarized_Map(img)
+    salient_region = sm.Get_Salient_Region(img)
 
     # visualize
 
