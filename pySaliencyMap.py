@@ -36,7 +36,8 @@ class pySaliencyMap:
         dst = list()
         for s in range(2,5):
             now_size = GaussianMaps[s].shape
-            now_size = (now_size[1], now_size[0])  ## (width, height)
+            now_size = (now_size[1], now_size[0])  
+            
             tmp = cv2.resize(GaussianMaps[s+3], now_size, interpolation=cv2.INTER_LINEAR)
             nowdst = cv2.absdiff(GaussianMaps[s], tmp)
             dst.append(nowdst)
@@ -191,7 +192,7 @@ class pySaliencyMap:
         CCM = self.Get_Color(CFM_RG, CFM_BY)
         OCM = self.Get_Orientation(OFM)
 
-        SMMat = ICM*0.35 + CCM*0.35 + OCM*0.3
+        SMMat = ICM*0.3 + CCM*0.3 + OCM*0.2
         # normalize
         normalizedSM = self.Range_Normalization(SMMat)
         normalizedSM2 = normalizedSM.astype(np.float32)
@@ -199,29 +200,3 @@ class pySaliencyMap:
         self.SM = cv2.resize(smoothedSM, (width,height), interpolation=cv2.INTER_NEAREST)
         # return
         return self.SM
-
-    def Get_Binarized_Map(self, src):
-        # get a saliency map
-        if self.SM is None:
-            self.SM = self.Get_Saliency_Map(src)
-        # convert scale
-        SM_I8U = np.uint8(255 * self.SM)
-        # binarize
-        thresh, binarized_SM = cv2.threshold(SM_I8U, thresh=0, maxval=255, type=cv2.THRESH_BINARY+cv2.THRESH_OTSU)
-        return binarized_SM
-
-    def Get_Salient_Region(self, src):
-        # get a binarized saliency map
-        binarized_SM = self.Get_Binarized_Map(src)
-        # GrabCut
-        img = src.copy()
-        mask =  np.where((binarized_SM!=0), cv2.GC_PR_FGD, cv2.GC_PR_BGD).astype('uint8')
-        bgdmodel = np.zeros((1,65),np.float64)
-        fgdmodel = np.zeros((1,65),np.float64)
-        rect = (0,0,1,1)  # dummy
-        iterCount = 1
-        cv2.grabCut(img, mask=mask, rect=rect, bgdModel=bgdmodel, fgdModel=fgdmodel, iterCount=iterCount, mode=cv2.GC_INIT_WITH_MASK)
-        # post-processing
-        mask_out = np.where((mask==cv2.GC_FGD) + (mask==cv2.GC_PR_FGD), 255, 0).astype('uint8')
-        output = cv2.bitwise_and(img,img,mask=mask_out)
-        return output
