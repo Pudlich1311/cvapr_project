@@ -23,22 +23,15 @@ if __name__ == '__main__':
 
     # computation
     saliency_map = sm.Get_Saliency_Map(img)
-    binarized_map = sm.Get_Binarized_Map(img)
-    salient_region = sm.Get_Salient_Region(img)
 
     # visualize
 
-    plt.subplot(2,2,1), plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+    plt.subplot(1,2,1), plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
     plt.title('Input image')
 
-    plt.subplot(2,2,2), plt.imshow(saliency_map, 'gray')
+    plt.subplot(1,2,2), plt.imshow(saliency_map, 'gray')
     plt.title('Saliency map')
 
-    plt.subplot(2,2,3), plt.imshow(binarized_map)
-    plt.title('Binarilized saliency map')
-
-    plt.subplot(2,2,4), plt.imshow(cv2.cvtColor(salient_region, cv2.COLOR_BGR2RGB))
-    plt.title('Salient region')
 
 
     plt.show()
